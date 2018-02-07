@@ -44,19 +44,25 @@ type GetSymbolLibrary struct{ String }
 type ResolvedSymbolLibrary struct{ String }
 
 var typeMapMsg2Go = map[Type]reflect.Type{
+	MTOK: reflect.TypeOf(OK{}),
+
 	MTVersion:       reflect.TypeOf(Version{}),
 	MTAuthorization: reflect.TypeOf(Authorization{}),
 	MTLinkLibrary:   reflect.TypeOf(LinkLibrary{}),
 
-	MTOK: reflect.TypeOf(OK{}),
+	MTGetSymbolLibrary:      reflect.TypeOf(GetSymbolLibrary{}),
+	MTResolvedSymbolLibrary: reflect.TypeOf(ResolvedSymbolLibrary{}),
 }
 
 var typeMapGo2Msg = map[reflect.Type]Type{
-	reflect.TypeOf(Version{}):       MTVersion,
-	reflect.TypeOf(Authorization{}): MTAuthorization,
-	reflect.TypeOf(LinkLibrary{}):   MTLinkLibrary,
+	reflect.TypeOf(&OK{}): MTOK,
 
-	reflect.TypeOf(OK{}): MTOK,
+	reflect.TypeOf(&Version{}):       MTVersion,
+	reflect.TypeOf(&Authorization{}): MTAuthorization,
+	reflect.TypeOf(&LinkLibrary{}):   MTLinkLibrary,
+
+	reflect.TypeOf(&GetSymbolLibrary{}):      MTGetSymbolLibrary,
+	reflect.TypeOf(&ResolvedSymbolLibrary{}): MTResolvedSymbolLibrary,
 }
 
 func (h *Header) ReadFrom(r io.Reader) (n int64, err error) {
@@ -92,7 +98,7 @@ func (ok *OK) Size() int64 {
 }
 
 func (t *Token) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, binary.LittleEndian, *t)
+	err = binary.Read(r, binary.LittleEndian, (*[128]byte)(t))
 	if err != nil {
 		return 0, err
 	}
@@ -131,7 +137,7 @@ func (s *String) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (s *String) WriteTo(w io.Writer) (n int64, err error) {
-	var length uint64 = uint64(len(*s)) + 1
+	var length uint64 = uint64(len(*s))
 	err = binary.Write(w, binary.LittleEndian, &length)
 	if err != nil {
 		return 0, err
@@ -140,16 +146,15 @@ func (s *String) WriteTo(w io.Writer) (n int64, err error) {
 	if err != nil {
 		return 8 + int64(m), err
 	}
-	null := [...]byte{0}
-	m, err = w.Write(null[:])
-	if err != nil {
-		return 8 + int64(len(*s)) + int64(m), err
-	}
-	return 8 + int64(len(*s)) + 1, nil
+	return 8 + int64(len(*s)), nil
 }
 
 func (s *String) Size() int64 {
 	return int64(len(*s)) + 1
+}
+
+func (s *String) String() string {
+	return string(*s)
 }
 
 func (v *Version) ReadFrom(r io.Reader) (n int64, err error) {
