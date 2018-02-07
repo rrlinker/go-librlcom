@@ -33,7 +33,7 @@ func (c *Courier) Receive() (Message, error) {
 		return nil, err
 	}
 	if t, ok := typeMapMsg2Go[header.MessageType]; ok {
-		msg := reflect.New(t).Elem().Interface().(Message)
+		msg := reflect.New(t).Interface().(Message)
 		_, err = msg.ReadFrom(c.conn)
 		if err != nil {
 			return &header, err
@@ -56,6 +56,7 @@ func (c *Courier) Send(msg Message) error {
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 	return ErrUnknownMessage
 }
