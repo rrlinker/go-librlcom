@@ -21,7 +21,6 @@ const (
 )
 
 type Header struct {
-	MessageSize uint64
 	MessageType Type
 }
 

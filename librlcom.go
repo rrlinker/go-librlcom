@@ -46,7 +46,6 @@ func (c *Courier) Receive() (Message, error) {
 func (c *Courier) Send(msg Message) error {
 	if t, ok := typeMapGo2Msg[reflect.TypeOf(msg)]; ok {
 		var header Header
-		header.MessageSize = uint64(msg.Size())
 		header.MessageType = t
 		_, err := header.WriteTo(c.conn)
 		if err != nil {
