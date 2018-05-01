@@ -12,9 +12,8 @@ type Type uint64
 const (
 	MTOK Type = 0x0C << 56
 
-	MTVersion       Type = 0x01
-	MTAuthorization Type = 0x0A
-	MTLinkLibrary   Type = 0x111B
+	MTVersion     Type = 0x01
+	MTLinkLibrary Type = 0x111B
 
 	MTGetSymbolLibrary      Type = 0x63751711B
 	MTResolvedSymbolLibrary Type = 0x435013D417
@@ -30,13 +29,11 @@ type Message interface {
 	Size() int64
 }
 
-type Token [128]byte
 type String string
 
 type OK struct{}
 
 type Version struct{ Value uint64 }
-type Authorization struct{ Token }
 type LinkLibrary struct{ String }
 
 type GetSymbolLibrary struct{ String }
@@ -45,9 +42,8 @@ type ResolvedSymbolLibrary struct{ String }
 var typeMapMsg2Go = map[Type]reflect.Type{
 	MTOK: reflect.TypeOf(OK{}),
 
-	MTVersion:       reflect.TypeOf(Version{}),
-	MTAuthorization: reflect.TypeOf(Authorization{}),
-	MTLinkLibrary:   reflect.TypeOf(LinkLibrary{}),
+	MTVersion:     reflect.TypeOf(Version{}),
+	MTLinkLibrary: reflect.TypeOf(LinkLibrary{}),
 
 	MTGetSymbolLibrary:      reflect.TypeOf(GetSymbolLibrary{}),
 	MTResolvedSymbolLibrary: reflect.TypeOf(ResolvedSymbolLibrary{}),
@@ -56,9 +52,8 @@ var typeMapMsg2Go = map[Type]reflect.Type{
 var typeMapGo2Msg = map[reflect.Type]Type{
 	reflect.TypeOf(&OK{}): MTOK,
 
-	reflect.TypeOf(&Version{}):       MTVersion,
-	reflect.TypeOf(&Authorization{}): MTAuthorization,
-	reflect.TypeOf(&LinkLibrary{}):   MTLinkLibrary,
+	reflect.TypeOf(&Version{}):     MTVersion,
+	reflect.TypeOf(&LinkLibrary{}): MTLinkLibrary,
 
 	reflect.TypeOf(&GetSymbolLibrary{}):      MTGetSymbolLibrary,
 	reflect.TypeOf(&ResolvedSymbolLibrary{}): MTResolvedSymbolLibrary,
@@ -94,26 +89,6 @@ func (ok *OK) WriteTo(w io.Writer) (n int64, err error) {
 
 func (ok *OK) Size() int64 {
 	return 0
-}
-
-func (t *Token) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, binary.LittleEndian, (*[128]byte)(t))
-	if err != nil {
-		return 0, err
-	}
-	return t.Size(), nil
-}
-
-func (t *Token) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, binary.LittleEndian, (*[128]byte)(t))
-	if err != nil {
-		return 0, err
-	}
-	return t.Size(), nil
-}
-
-func (t *Token) Size() int64 {
-	return int64(binary.Size(*t))
 }
 
 func (s *String) ReadFrom(r io.Reader) (n int64, err error) {
