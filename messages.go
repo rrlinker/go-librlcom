@@ -2,25 +2,33 @@ package librlcom
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"reflect"
 )
 
-type Type uint64
+var (
+	ErrUnknownMessage = errors.New("unknown message")
+)
+
+type MessageType uint64
 
 // Message types
 const (
-	MTOK Type = 0x0C << 56
+	MTUnknown MessageType = 0x00
+	MTOK      MessageType = 0x0C << 56
+	MTNotOK   MessageType = 0x7C << 56
 
-	MTVersion     Type = 0x01
-	MTLinkLibrary Type = 0x111B
+	MTVersion     MessageType = 0x01
+	MTToken       MessageType = 0x70
+	MTLinkLibrary MessageType = 0x111B
 
-	MTGetSymbolLibrary      Type = 0x63751711B
-	MTResolvedSymbolLibrary Type = 0x435013D417
+	MTGetSymbolLibrary      MessageType = 0x63751711B
+	MTResolvedSymbolLibrary MessageType = 0x435013D417
 )
 
 type Header struct {
-	MessageType Type
+	MessageType
 }
 
 type Message interface {
@@ -30,29 +38,39 @@ type Message interface {
 }
 
 type String string
+type Empty struct{}
 
-type OK struct{}
+type Unknown struct{ Empty }
+type OK struct{ Empty }
+type NotOK struct{ Empty }
 
 type Version struct{ Value uint64 }
+type Token struct{ Token []byte }
 type LinkLibrary struct{ String }
 
 type GetSymbolLibrary struct{ String }
 type ResolvedSymbolLibrary struct{ String }
 
-var typeMapMsg2Go = map[Type]reflect.Type{
-	MTOK: reflect.TypeOf(OK{}),
+var typeMapMsg2Go = map[MessageType]reflect.Type{
+	MTUnknown: reflect.TypeOf(Unknown{}),
+	MTOK:      reflect.TypeOf(OK{}),
+	MTNotOK:   reflect.TypeOf(NotOK{}),
 
 	MTVersion:     reflect.TypeOf(Version{}),
+	MTToken:       reflect.TypeOf(Token{}),
 	MTLinkLibrary: reflect.TypeOf(LinkLibrary{}),
 
 	MTGetSymbolLibrary:      reflect.TypeOf(GetSymbolLibrary{}),
 	MTResolvedSymbolLibrary: reflect.TypeOf(ResolvedSymbolLibrary{}),
 }
 
-var typeMapGo2Msg = map[reflect.Type]Type{
-	reflect.TypeOf(&OK{}): MTOK,
+var typeMapGo2Msg = map[reflect.Type]MessageType{
+	reflect.TypeOf(&Unknown{}): MTUnknown,
+	reflect.TypeOf(&OK{}):      MTOK,
+	reflect.TypeOf(&NotOK{}):   MTNotOK,
 
 	reflect.TypeOf(&Version{}):     MTVersion,
+	reflect.TypeOf(&Token{}):       MTToken,
 	reflect.TypeOf(&LinkLibrary{}): MTLinkLibrary,
 
 	reflect.TypeOf(&GetSymbolLibrary{}):      MTGetSymbolLibrary,
@@ -79,15 +97,15 @@ func (h *Header) Size() int64 {
 	return int64(binary.Size(*h))
 }
 
-func (ok *OK) ReadFrom(r io.Reader) (n int64, err error) {
+func (e *Empty) ReadFrom(r io.Reader) (n int64, err error) {
 	return 0, nil
 }
 
-func (ok *OK) WriteTo(w io.Writer) (n int64, err error) {
+func (e *Empty) WriteTo(w io.Writer) (n int64, err error) {
 	return 0, nil
 }
 
-func (ok *OK) Size() int64 {
+func (e *Empty) Size() int64 {
 	return 0
 }
 
@@ -103,11 +121,11 @@ func (s *String) ReadFrom(r io.Reader) (n int64, err error) {
 		m, err = r.Read(str[k:])
 		if err != nil {
 			*s = String(str)
-			return int64(k), err
+			return 8 + int64(k), err
 		}
 	}
 	*s = String(str)
-	return int64(length), nil
+	return 8 + int64(length), nil
 }
 
 func (s *String) WriteTo(w io.Writer) (n int64, err error) {
@@ -149,4 +167,41 @@ func (v *Version) WriteTo(w io.Writer) (n int64, err error) {
 
 func (v *Version) Size() int64 {
 	return int64(binary.Size(*v))
+}
+
+func (t *Token) ReadFrom(r io.Reader) (n int64, err error) {
+	var length uint64
+	err = binary.Read(r, binary.LittleEndian, &length)
+	if err != nil {
+		return 0, err
+	}
+	var m int
+	t.Token = make([]byte, length)
+	for k := uint64(0); k < length; k += uint64(m) {
+		m, err = r.Read(t.Token[k:])
+		if err != nil {
+			return 8 + int64(k), err
+		}
+	}
+	return 8 + int64(length), nil
+}
+
+func (t *Token) WriteTo(w io.Writer) (n int64, err error) {
+	var length uint64 = uint64(len(t.Token))
+	err = binary.Write(w, binary.LittleEndian, &length)
+	if err != nil {
+		return 0, err
+	}
+	var m int
+	for k := uint64(0); k < length; k += uint64(m) {
+		m, err = w.Write(t.Token[k:])
+		if err != nil {
+			return 8 + int64(k), err
+		}
+	}
+	return 8 + int64(len(t.Token)), nil
+}
+
+func (t *Token) Size() int64 {
+	return int64(len(t.Token))
 }
