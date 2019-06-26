@@ -26,6 +26,10 @@ func (cc *CryptoCourier) Close() error {
 	return cc.conn.Close()
 }
 
+func (cc *CryptoCourier) Key() []byte {
+	return cc.conn.key
+}
+
 func (cc *CryptoCourier) Receive() (Message, error) {
 	var err error
 	err = cc.conn.GatherAndDecrypt()

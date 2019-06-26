@@ -19,6 +19,7 @@ var (
 
 type CryptoConnection struct {
 	conn        *Connection
+	key         []byte
 	cipher      cipher.Block
 	readOffset  int
 	readBuffer  []byte
@@ -36,6 +37,10 @@ func NewCryptoConnection(conn net.Conn) *CryptoConnection {
 
 func (cc *CryptoConnection) Close() error {
 	return cc.conn.Close()
+}
+
+func (cc *CryptoConnection) Key() []byte {
+	return cc.key
 }
 
 func (cc *CryptoConnection) Read(p []byte) (n int, err error) {
@@ -109,6 +114,8 @@ func (cc *CryptoConnection) InitAsServer(priv *rsa.PrivateKey) error {
 
 func (cc *CryptoConnection) InitWithKey(key []byte) error {
 	var err error
+	cc.key = make([]byte, len(key), len(key))
+	copy(cc.key, key)
 	cc.cipher, err = aes.NewCipher(key)
 	if err != nil {
 		return err
